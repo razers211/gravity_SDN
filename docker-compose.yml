@@ -108,7 +108,8 @@ services:
   api-gateway:
     build:
       context: .
-      dockerfile: services/api_gateway/Dockerfile
+      dockerfile: Dockerfile
+    command: python services/api_gateway/main.py
     container_name: gravity-api-gateway
     ports:
       - "8000:8000"
@@ -128,7 +129,8 @@ services:
   intent-engine:
     build:
       context: .
-      dockerfile: services/intent_engine/Dockerfile
+      dockerfile: Dockerfile
+    command: python services/intent_engine/main.py
     container_name: gravity-intent-engine
     ports:
       - "8001:8001"
@@ -145,7 +147,8 @@ services:
   provisioning-engine:
     build:
       context: .
-      dockerfile: services/provisioning_engine/Dockerfile
+      dockerfile: Dockerfile
+    command: python services/provisioning_engine/main.py
     container_name: gravity-provisioning-engine
     ports:
       - "8002:8002"
@@ -162,7 +165,8 @@ services:
   ztp-service:
     build:
       context: .
-      dockerfile: services/ztp_service/Dockerfile
+      dockerfile: Dockerfile
+    command: python services/ztp_service/main.py
     container_name: gravity-ztp-service
     ports:
       - "8003:8003"
@@ -179,7 +183,8 @@ services:
   oam-service:
     build:
       context: .
-      dockerfile: services/oam_service/Dockerfile
+      dockerfile: Dockerfile
+    command: python services/oam_service/main.py
     container_name: gravity-oam-service
     ports:
       - "8004:8004"
@@ -197,7 +202,8 @@ services:
   resource-manager:
     build:
       context: .
-      dockerfile: services/resource_manager/Dockerfile
+      dockerfile: Dockerfile
+    command: python services/resource_manager/main.py
     container_name: gravity-resource-manager
     ports:
       - "8005:8005"
