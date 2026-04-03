@@ -6,7 +6,12 @@
 const App = {
     state: {
         token: localStorage.getItem('gravity_token') || null,
-        user: JSON.parse(localStorage.getItem('gravity_user')) || null,
+        user: (() => {
+            try {
+                const u = localStorage.getItem('gravity_user');
+                return (u && u !== 'undefined') ? JSON.parse(u) : null;
+            } catch(e) { return null; }
+        })(),
         currentPanel: window.location.hash.slice(1) || 'dashboard',
         alarms: [],
         devices: []
