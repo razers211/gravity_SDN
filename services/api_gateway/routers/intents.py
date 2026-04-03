@@ -39,7 +39,11 @@ async def login(form_data: OAuth2PasswordRequestForm = Depends()):
         )
 
     token = create_access_token(data={"sub": user.username, "role": user.role})
-    return Token(access_token=token, expires_in=3600)
+    return Token(
+        access_token=token, 
+        expires_in=3600, 
+        user={"username": user.username, "role": user.role}
+    )
 
 
 @router.post(

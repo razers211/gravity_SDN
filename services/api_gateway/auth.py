@@ -37,6 +37,7 @@ class Token(BaseModel):
     access_token: str
     token_type: str = "bearer"
     expires_in: int = Field(description="Token TTL in seconds")
+    user: dict[str, str] = Field(default_factory=dict)
 
 
 class TokenPayload(BaseModel):
