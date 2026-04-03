@@ -17,7 +17,7 @@ from typing import Any
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from jose import JWTError, jwt
-from passlib.context import CryptContext
+import bcrypt
 from pydantic import BaseModel, Field
 
 from shared.config import get_settings
@@ -28,7 +28,6 @@ settings = get_settings()
 # ── Security Schemes ─────────────────────────────────────────────────────────
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/token")
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 # ── Models ───────────────────────────────────────────────────────────────────
 
@@ -59,19 +58,19 @@ class User(BaseModel):
 _USERS_DB: dict[str, dict[str, Any]] = {
     "admin": {
         "username": "admin",
-        "hashed_password": pwd_context.hash("admin"),
+        "hashed_password": bcrypt.hashpw(b"admin", bcrypt.gensalt()).decode("utf-8"),
         "role": "admin",
         "disabled": False,
     },
     "operator": {
         "username": "operator",
-        "hashed_password": pwd_context.hash("operator"),
+        "hashed_password": bcrypt.hashpw(b"operator", bcrypt.gensalt()).decode("utf-8"),
         "role": "operator",
         "disabled": False,
     },
     "viewer": {
         "username": "viewer",
-        "hashed_password": pwd_context.hash("viewer"),
+        "hashed_password": bcrypt.hashpw(b"viewer", bcrypt.gensalt()).decode("utf-8"),
         "role": "viewer",
         "disabled": False,
     },
@@ -96,7 +95,7 @@ def create_access_token(data: dict[str, Any], expires_delta: timedelta | None = 
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
     """Verify a plaintext password against its hash."""
-    return pwd_context.verify(plain_password, hashed_password)
+    return bcrypt.checkpw(plain_password.encode("utf-8"), hashed_password.encode("utf-8"))
 
 
 def authenticate_user(username: str, password: str) -> User | None:
