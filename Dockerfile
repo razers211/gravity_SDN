@@ -14,6 +14,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     python3-dev \
     libpq-dev \
     librdkafka-dev \
+    libssl-dev \
+    libffi-dev \
+    pkg-config \
+    cargo \
     && rm -rf /var/lib/apt/lists/*
 
 # Install Poetry
