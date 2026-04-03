@@ -130,8 +130,9 @@ import os
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import HTMLResponse
 
-# Mount the static directory
-frontend_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'frontend')
+# Mount the static directory relative to CWD instead of __file__
+# since pip installation places the python file deep into /usr/local/lib in Docker
+frontend_dir = os.path.join(os.getcwd(), 'frontend')
 app.mount("/static", StaticFiles(directory=frontend_dir), name="static")
 
 @app.get("/", tags=["System"])
