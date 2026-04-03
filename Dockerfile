@@ -7,9 +7,13 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     POETRY_HOME="/opt/poetry" \
     POETRY_VIRTUALENVS_CREATE=false
 
-# Install curl for poetry installation
+# Install required system dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
+    build-essential \
+    python3-dev \
+    libpq-dev \
+    librdkafka-dev \
     && rm -rf /var/lib/apt/lists/*
 
 # Install Poetry
