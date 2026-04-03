@@ -1,0 +1,514 @@
+openapi: "3.1.0"
+info:
+  title: Gravity SDN — CloudEngine IDN Automation Platform
+  description: |
+    Northbound REST API for the Level 3+ Autonomous Driving Network controller.
+    Orchestrates Intent-Driven Networking, NETCONF provisioning, Zero Touch
+    Provisioning, and AI-driven O&M for Huawei CloudEngine data center fabrics.
+  version: "1.0.0"
+  contact:
+    name: Gravity SDN Engineering
+  license:
+    name: Proprietary
+
+servers:
+  - url: http://localhost:8000
+    description: Local development
+  - url: https://sdn.example.com
+    description: Production
+
+security:
+  - BearerAuth: []
+
+tags:
+  - name: Authentication
+    description: OAuth2 token management
+  - name: Intents
+    description: Intent translation, verification, and provisioning
+  - name: Devices
+    description: Device inventory and lifecycle management
+  - name: Fabrics
+    description: Fabric topology and VXLAN overlay management
+  - name: ZTP
+    description: Zero Touch Provisioning and device onboarding
+  - name: Runbooks
+    description: Runbook orchestration and execution
+  - name: Telemetry
+    description: Telemetry monitoring, alarms, and metrics
+  - name: Topology
+    description: Network Digital Map and topology visualization
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    Token:
+      type: object
+      properties:
+        access_token:
+          type: string
+          example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+        token_type:
+          type: string
+          example: bearer
+        expires_in:
+          type: integer
+          example: 3600
+
+    Subnet:
+      type: object
+      required: [name, cidr]
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+          example: subnet-web
+        cidr:
+          type: string
+          example: "10.100.1.0/24"
+        gateway:
+          type: string
+          example: "10.100.1.1"
+        vni:
+          type: integer
+          example: 10100
+
+    FirewallRule:
+      type: object
+      properties:
+        name:
+          type: string
+          example: deny-direct
+        source_subnet:
+          type: string
+        destination_subnet:
+          type: string
+        protocol:
+          type: string
+          enum: [tcp, udp, icmp, any]
+        action:
+          type: string
+          enum: [permit, deny, redirect]
+        priority:
+          type: integer
+          example: 100
+
+    FirewallPolicy:
+      type: object
+      properties:
+        name:
+          type: string
+          example: microseg-web-db
+        source_subnets:
+          type: array
+          items:
+            type: string
+        destination_subnets:
+          type: array
+          items:
+            type: string
+        rules:
+          type: array
+          items:
+            $ref: "#/components/schemas/FirewallRule"
+
+    VPC:
+      type: object
+      required: [name]
+      properties:
+        name:
+          type: string
+          example: vpc-1
+        subnets:
+          type: array
+          items:
+            $ref: "#/components/schemas/Subnet"
+        firewall_policies:
+          type: array
+          items:
+            $ref: "#/components/schemas/FirewallPolicy"
+
+    Tenant:
+      type: object
+      required: [name]
+      properties:
+        name:
+          type: string
+          example: Tenant-A
+        contact_email:
+          type: string
+
+    IntentPayload:
+      type: object
+      required: [tenant, vpcs]
+      properties:
+        tenant:
+          $ref: "#/components/schemas/Tenant"
+        vpcs:
+          type: array
+          items:
+            $ref: "#/components/schemas/VPC"
+        dry_run:
+          type: boolean
+          default: false
+
+    Violation:
+      type: object
+      properties:
+        code:
+          type: string
+          enum: [ROUTING_LOOP, IP_CONFLICT, POLICY_VIOLATION, VNI_CONFLICT, RT_MISMATCH]
+        severity:
+          type: string
+          enum: [error, warning]
+        message:
+          type: string
+        affected_resources:
+          type: array
+          items:
+            type: string
+
+    VerificationResult:
+      type: object
+      properties:
+        intent_id:
+          type: string
+        passed:
+          type: boolean
+        violations:
+          type: array
+          items:
+            $ref: "#/components/schemas/Violation"
+        simulation_time_ms:
+          type: number
+
+    IntentResult:
+      type: object
+      properties:
+        intent_id:
+          type: string
+          format: uuid
+        status:
+          type: string
+          enum: [pending, validating, verified, provisioning, active, failed, rolled_back]
+        verification:
+          $ref: "#/components/schemas/VerificationResult"
+        provisioning_task_id:
+          type: string
+        error_message:
+          type: string
+
+    DeviceRegistration:
+      type: object
+      required: [hostname, management_ip, esn]
+      properties:
+        hostname:
+          type: string
+          example: ce-leaf-01
+        management_ip:
+          type: string
+          example: "10.255.0.1"
+        esn:
+          type: string
+          example: "2102311TDN10L6000003"
+        model:
+          type: string
+          example: CE6800
+        role:
+          type: string
+          enum: [spine, leaf, border-leaf, route-reflector, dci-gateway]
+        bgp_asn:
+          type: integer
+          example: 65000
+
+    Error:
+      type: object
+      properties:
+        error:
+          type: string
+        message:
+          type: string
+        detail:
+          type: string
+
+paths:
+  /api/v1/auth/token:
+    post:
+      tags: [Authentication]
+      summary: Issue JWT access token
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              required: [username, password]
+              properties:
+                username:
+                  type: string
+                password:
+                  type: string
+      responses:
+        "200":
+          description: Token issued
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Token"
+        "401":
+          description: Invalid credentials
+
+  /api/v1/intents:
+    post:
+      tags: [Intents]
+      summary: Submit a tenant intent
+      description: |
+        Complete intent processing pipeline:
+        1. Translate high-level intent → formal network model
+        2. Verify: no routing loops, IP conflicts, or policy violations
+        3. Generate NETCONF provisioning plan
+        4. Execute ACID NETCONF transactions (unless dry_run=true)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/IntentPayload"
+            example:
+              tenant:
+                name: Tenant-A
+              vpcs:
+                - name: vpc-1
+                  subnets:
+                    - name: subnet-web
+                      cidr: "10.100.1.0/24"
+                    - name: subnet-db
+                      cidr: "10.100.2.0/24"
+                  firewall_policies:
+                    - name: microseg-web-db
+                      source_subnets: [subnet-web]
+                      destination_subnets: [subnet-db]
+                      rules:
+                        - name: deny-direct
+                          source_subnet: subnet-web
+                          destination_subnet: subnet-db
+                          action: deny
+              dry_run: false
+      responses:
+        "201":
+          description: Intent processed successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/IntentResult"
+        "422":
+          description: Verification failed
+        "500":
+          description: Internal server error
+
+    get:
+      tags: [Intents]
+      summary: List all intents
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [pending, verified, provisioning, active, failed]
+      responses:
+        "200":
+          description: Intent list
+
+  /api/v1/intents/{intent_id}:
+    get:
+      tags: [Intents]
+      summary: Get intent status
+      parameters:
+        - name: intent_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Intent details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/IntentResult"
+        "404":
+          description: Intent not found
+
+  /api/v1/devices:
+    get:
+      tags: [Devices]
+      summary: List all managed devices
+      parameters:
+        - name: role
+          in: query
+          schema:
+            type: string
+            enum: [spine, leaf, border-leaf, route-reflector]
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [active, degraded, offline, maintenance]
+      responses:
+        "200":
+          description: Device list
+
+    post:
+      tags: [Devices]
+      summary: Register a new device
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DeviceRegistration"
+      responses:
+        "201":
+          description: Device registered
+
+  /api/v1/devices/{device_id}:
+    get:
+      tags: [Devices]
+      summary: Get device details
+      parameters:
+        - name: device_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Device details
+        "404":
+          description: Device not found
+
+    delete:
+      tags: [Devices]
+      summary: Decommission a device
+      parameters:
+        - name: device_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Device decommissioned
+
+  /api/v1/fabrics:
+    get:
+      tags: [Fabrics]
+      summary: List all fabrics
+      responses:
+        "200":
+          description: Fabric list
+
+    post:
+      tags: [Fabrics]
+      summary: Create a fabric
+      responses:
+        "201":
+          description: Fabric created
+
+  /api/v1/ztp/register:
+    post:
+      tags: [ZTP]
+      summary: Register device for ZTP
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [esn]
+              properties:
+                esn:
+                  type: string
+                  example: "2102311TDN10L6000003"
+                hostname:
+                  type: string
+                role:
+                  type: string
+                  default: leaf
+      responses:
+        "201":
+          description: Device registered for ZTP
+
+  /api/v1/runbooks/execute:
+    post:
+      tags: [Runbooks]
+      summary: Execute a runbook
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [runbook_yaml]
+              properties:
+                runbook_yaml:
+                  type: string
+                  description: YAML runbook definition
+                context:
+                  type: object
+                  description: Initial context variables
+      responses:
+        "202":
+          description: Runbook execution started
+
+  /api/v1/telemetry/alarms:
+    get:
+      tags: [Telemetry]
+      summary: Get active alarms
+      parameters:
+        - name: severity
+          in: query
+          schema:
+            type: string
+            enum: [critical, major, minor, warning]
+        - name: device_id
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Active alarms
+
+  /api/v1/topology:
+    get:
+      tags: [Topology]
+      summary: Get full network topology
+      description: Returns the 5-layer digital map from Neo4j
+      responses:
+        "200":
+          description: Topology graph
+
+  /api/v1/topology/impact/{device_id}:
+    get:
+      tags: [Topology]
+      summary: Analyze device failure impact
+      parameters:
+        - name: device_id
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: interface
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Impact analysis result

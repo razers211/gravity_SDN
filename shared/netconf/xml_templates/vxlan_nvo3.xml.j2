@@ -1,0 +1,66 @@
+{# ──────────────────────────────────────────────────────────────────────────
+   VXLAN NVO3 Configuration — Huawei CloudEngine
+   
+   Configures:
+     - NVE (Network Virtualization Edge) interface
+     - VTEP source interface binding
+     - VNI-to-Bridge-Domain mappings
+     - Head-end peer replication or ingress replication lists
+     - BGP EVPN association for each VNI
+   
+   YANG Models: huawei-nvo3 (urn:huawei:params:xml:ns:yang:huawei-nvo3)
+   ────────────────────────────────────────────────────────────────────────── #}
+<config xmlns="urn:ietf:params:xml:ns:netconf:base:1.0">
+  <nvo3 xmlns="urn:huawei:params:xml:ns:yang:huawei-nvo3">
+    <nve-instances>
+      <nve-instance>
+        <if-name>{{ nve_interface | default('Nve1') }}</if-name>
+        <source-nve-interface>{{ source_interface }}</source-nve-interface>
+
+        {%- if protocol_bgp | default(true) %}
+        <nve-protocols>
+          <nve-protocol>
+            <protocol-type>bgp</protocol-type>
+          </nve-protocol>
+        </nve-protocols>
+        {%- endif %}
+
+        <!-- VNI Members -->
+        <vni-members>
+          {%- for vni_entry in vni_list %}
+          <vni-member>
+            <vni>{{ vni_entry.vni }}</vni>
+
+            {%- if vni_entry.type | default('l2') == 'l2' %}
+            <!-- L2 VNI: maps to Bridge Domain -->
+            <nve-mode>mode-l2</nve-mode>
+            {%- if vni_entry.protocol | default('bgp') == 'bgp' %}
+            <protocol-type>bgp</protocol-type>
+            {%- endif %}
+            {%- else %}
+            <!-- L3 VNI: maps to VPN Instance / VRF -->
+            <nve-mode>mode-l3</nve-mode>
+            {%- endif %}
+
+            {%- if vni_entry.head_end_peers is defined %}
+            <!-- Static head-end peer replication -->
+            <head-end-peers>
+              {%- for peer_ip in vni_entry.head_end_peers %}
+              <head-end-peer>
+                <peer-address>{{ peer_ip }}</peer-address>
+              </head-end-peer>
+              {%- endfor %}
+            </head-end-peers>
+            {%- endif %}
+
+            {%- if vni_entry.mcast_group is defined %}
+            <!-- Multicast group for BUM traffic -->
+            <mcast-address>{{ vni_entry.mcast_group }}</mcast-address>
+            {%- endif %}
+          </vni-member>
+          {%- endfor %}
+        </vni-members>
+      </nve-instance>
+    </nve-instances>
+  </nvo3>
+</config>

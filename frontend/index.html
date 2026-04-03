@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gravity SDN — CloudEngine IDN Automation Platform</title>
+    <meta name="description" content="Level 3+ Autonomous Driving Network Controller for Huawei CloudEngine Data Center Fabrics">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Outlined" rel="stylesheet">
+    <link rel="stylesheet" href="/static/css/gravity.css">
+</head>
+<body>
+    <!-- ═══ Login Overlay ═══ -->
+    <div id="login-overlay" class="login-overlay">
+        <div class="login-card">
+            <div class="login-logo">
+                <span class="material-icons-outlined logo-icon">hub</span>
+                <h1>Gravity SDN</h1>
+                <p>CloudEngine IDN Automation Platform</p>
+            </div>
+            <form id="login-form" autocomplete="off">
+                <div class="form-group">
+                    <label for="login-username">Username</label>
+                    <input type="text" id="login-username" placeholder="admin" required>
+                </div>
+                <div class="form-group">
+                    <label for="login-password">Password</label>
+                    <input type="password" id="login-password" placeholder="••••••" required>
+                </div>
+                <button type="submit" class="btn btn-primary btn-full" id="login-btn">Sign In</button>
+                <p class="login-error" id="login-error"></p>
+            </form>
+        </div>
+    </div>
+
+    <!-- ═══ Main Application ═══ -->
+    <div id="app" class="app hidden">
+        <!-- ── Sidebar ── -->
+        <aside class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <span class="material-icons-outlined sidebar-logo">hub</span>
+                <span class="sidebar-title">Gravity SDN</span>
+            </div>
+            <nav class="sidebar-nav">
+                <a href="#dashboard" class="nav-item active" data-panel="dashboard">
+                    <span class="material-icons-outlined">dashboard</span><span class="nav-label">Dashboard</span>
+                </a>
+                <a href="#topology" class="nav-item" data-panel="topology">
+                    <span class="material-icons-outlined">account_tree</span><span class="nav-label">Topology</span>
+                </a>
+                <div class="nav-section">INFRASTRUCTURE</div>
+                <a href="#devices" class="nav-item" data-panel="devices">
+                    <span class="material-icons-outlined">dns</span><span class="nav-label">Devices</span>
+                </a>
+                <a href="#fabrics" class="nav-item" data-panel="fabrics">
+                    <span class="material-icons-outlined">lan</span><span class="nav-label">Fabrics</span>
+                </a>
+                <a href="#vxlan" class="nav-item" data-panel="vxlan">
+                    <span class="material-icons-outlined">layers</span><span class="nav-label">VXLAN</span>
+                </a>
+                <div class="nav-section">AUTOMATION</div>
+                <a href="#provisioning" class="nav-item" data-panel="provisioning">
+                    <span class="material-icons-outlined">rocket_launch</span><span class="nav-label">Provisioning</span>
+                </a>
+                <a href="#ztp" class="nav-item" data-panel="ztp">
+                    <span class="material-icons-outlined">bolt</span><span class="nav-label">ZTP</span>
+                </a>
+                <a href="#runbooks" class="nav-item" data-panel="runbooks">
+                    <span class="material-icons-outlined">menu_book</span><span class="nav-label">Runbooks</span>
+                </a>
+                <div class="nav-section">RESOURCES</div>
+                <a href="#resources" class="nav-item" data-panel="resources">
+                    <span class="material-icons-outlined">inventory_2</span><span class="nav-label">Resources</span>
+                </a>
+                <div class="nav-section">MONITORING</div>
+                <a href="#alarms" class="nav-item" data-panel="alarms">
+                    <span class="material-icons-outlined">notifications_active</span><span class="nav-label">Alarms</span>
+                    <span class="nav-badge" id="alarm-badge" style="display:none">0</span>
+                </a>
+                <a href="#telemetry" class="nav-item" data-panel="telemetry">
+                    <span class="material-icons-outlined">monitoring</span><span class="nav-label">Telemetry</span>
+                </a>
+                <a href="#health" class="nav-item" data-panel="health">
+                    <span class="material-icons-outlined">health_and_safety</span><span class="nav-label">Health</span>
+                </a>
+                <a href="#paths" class="nav-item" data-panel="paths">
+                    <span class="material-icons-outlined">route</span><span class="nav-label">Path Trace</span>
+                </a>
+                <div class="nav-section">ADMINISTRATION</div>
+                <a href="#audit" class="nav-item" data-panel="audit">
+                    <span class="material-icons-outlined">history</span><span class="nav-label">Audit Log</span>
+                </a>
+                <a href="#users" class="nav-item" data-panel="users">
+                    <span class="material-icons-outlined">group</span><span class="nav-label">Users</span>
+                </a>
+            </nav>
+            <div class="sidebar-footer">
+                <span class="sidebar-version">v1.0.0</span>
+            </div>
+        </aside>
+
+        <!-- ── Main Content ── -->
+        <main class="main-content">
+            <!-- Top Header -->
+            <header class="top-header">
+                <button class="sidebar-toggle" id="sidebar-toggle">
+                    <span class="material-icons-outlined">menu</span>
+                </button>
+                <h2 class="page-title" id="page-title">Dashboard</h2>
+                <div class="header-actions">
+                    <div class="header-search">
+                        <span class="material-icons-outlined">search</span>
+                        <input type="text" id="global-search" placeholder="Search devices, tenants, alarms...">
+                    </div>
+                    <button class="header-btn" id="refresh-btn" title="Refresh">
+                        <span class="material-icons-outlined">refresh</span>
+                    </button>
+                    <div class="header-user" id="header-user">
+                        <span class="material-icons-outlined">account_circle</span>
+                        <span id="user-name">admin</span>
+                        <button class="btn-text" id="logout-btn">Logout</button>
+                    </div>
+                </div>
+            </header>
+
+            <!-- Panel Container -->
+            <div class="panel-container" id="panel-container">
+                <!-- Dashboard -->
+                <section class="panel active" id="panel-dashboard"></section>
+                <!-- Topology -->
+                <section class="panel" id="panel-topology"></section>
+                <!-- Devices -->
+                <section class="panel" id="panel-devices"></section>
+                <!-- Fabrics -->
+                <section class="panel" id="panel-fabrics"></section>
+                <!-- VXLAN -->
+                <section class="panel" id="panel-vxlan"></section>
+                <!-- Provisioning -->
+                <section class="panel" id="panel-provisioning"></section>
+                <!-- ZTP -->
+                <section class="panel" id="panel-ztp"></section>
+                <!-- Runbooks -->
+                <section class="panel" id="panel-runbooks"></section>
+                <!-- Resources -->
+                <section class="panel" id="panel-resources"></section>
+                <!-- Alarms -->
+                <section class="panel" id="panel-alarms"></section>
+                <!-- Telemetry -->
+                <section class="panel" id="panel-telemetry"></section>
+                <!-- Health -->
+                <section class="panel" id="panel-health"></section>
+                <!-- Paths -->
+                <section class="panel" id="panel-paths"></section>
+                <!-- Audit -->
+                <section class="panel" id="panel-audit"></section>
+                <!-- Users -->
+                <section class="panel" id="panel-users"></section>
+            </div>
+        </main>
+    </div>
+
+    <!-- ═══ Toast Notifications ═══ -->
+    <div class="toast-container" id="toast-container"></div>
+
+    <!-- ═══ Modal ═══ -->
+    <div class="modal-overlay hidden" id="modal-overlay">
+        <div class="modal" id="modal">
+            <div class="modal-header">
+                <h3 id="modal-title"></h3>
+                <button class="modal-close" id="modal-close"><span class="material-icons-outlined">close</span></button>
+            </div>
+            <div class="modal-body" id="modal-body"></div>
+            <div class="modal-footer" id="modal-footer"></div>
+        </div>
+    </div>
+
+    <!-- ═══ External Libraries (CDN) ═══ -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/cytoscape/3.30.4/cytoscape.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/cytoscape-dagre@2.5.0/cytoscape-dagre.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/dagre@0.8.5/dist/dagre.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+
+    <!-- ═══ Application Scripts ═══ -->
+    <script src="/static/js/app.js"></script>
+    <script src="/static/js/panels/dashboard.js"></script>
+    <script src="/static/js/panels/topology.js"></script>
+    <script src="/static/js/panels/devices.js"></script>
+    <script src="/static/js/panels/fabrics.js"></script>
+    <script src="/static/js/panels/vxlan.js"></script>
+    <script src="/static/js/panels/provisioning.js"></script>
+    <script src="/static/js/panels/ztp.js"></script>
+    <script src="/static/js/panels/runbooks.js"></script>
+    <script src="/static/js/panels/resources.js"></script>
+    <script src="/static/js/panels/alarms.js"></script>
+    <script src="/static/js/panels/telemetry.js"></script>
+    <script src="/static/js/panels/health.js"></script>
+    <script src="/static/js/panels/paths.js"></script>
+    <script src="/static/js/panels/audit.js"></script>
+    <script src="/static/js/panels/users.js"></script>
+</body>
+</html>

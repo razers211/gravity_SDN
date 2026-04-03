@@ -1,0 +1,81 @@
+{# ──────────────────────────────────────────────────────────────────────────
+   BGP EVPN Instance Configuration — Huawei CloudEngine
+   
+   Configures:
+     - BGP process with local AS and router-id
+     - iBGP peer group for EVPN overlay
+     - Individual BGP peers (spines/RRs) with EVPN address-family
+     - L2VPN EVPN address-family activation
+     - Route Reflector client designation (if applicable)
+   
+   YANG Models: huawei-bgp (urn:huawei:params:xml:ns:yang:huawei-bgp)
+   ────────────────────────────────────────────────────────────────────────── #}
+<config xmlns="urn:ietf:params:xml:ns:netconf:base:1.0">
+  <bgp xmlns="urn:huawei:params:xml:ns:yang:huawei-bgp">
+    <bgpcomm>
+      <bgp-vrfs>
+        <bgp-vrf>
+          <vrf-name>_public_</vrf-name>
+          <bgp-vrf-afs>
+            <bgp-vrf-af>
+              <af-type>l2vpnEvpn</af-type>
+              {%- if reflect_client_peers is defined and reflect_client_peers %}
+              <reflect-client>
+                <reflect-between-client>true</reflect-between-client>
+              </reflect-client>
+              {%- endif %}
+            </bgp-vrf-af>
+          </bgp-vrf-afs>
+        </bgp-vrf>
+      </bgp-vrfs>
+    </bgpcomm>
+
+    <bgp-instance>
+      <as-number>{{ bgp_asn }}</as-number>
+      <router-id>{{ router_id }}</router-id>
+
+      {%- if peer_group_name is defined %}
+      <!-- EVPN Peer Group -->
+      <peer-groups>
+        <peer-group>
+          <group-name>{{ peer_group_name | default('EVPN-OVERLAY') }}</group-name>
+          <peer-as>{{ bgp_asn }}</peer-as>
+          <connect-interface>{{ connect_interface | default('LoopBack0') }}</connect-interface>
+          <address-families>
+            <address-family>
+              <af-type>l2vpnEvpn</af-type>
+              <enable>true</enable>
+              {%- if is_route_reflector | default(false) %}
+              <reflect-client>true</reflect-client>
+              {%- endif %}
+            </address-family>
+          </address-families>
+        </peer-group>
+      </peer-groups>
+      {%- endif %}
+
+      <!-- BGP Peers -->
+      <peers>
+        {%- for peer in bgp_peers %}
+        <peer>
+          <peer-address>{{ peer.address }}</peer-address>
+          <peer-as>{{ peer.as_number | default(bgp_asn) }}</peer-as>
+          {%- if peer_group_name is defined %}
+          <peer-group-name>{{ peer_group_name | default('EVPN-OVERLAY') }}</peer-group-name>
+          {%- endif %}
+          <connect-interface>{{ peer.connect_interface | default('LoopBack0') }}</connect-interface>
+          <address-families>
+            <address-family>
+              <af-type>l2vpnEvpn</af-type>
+              <enable>true</enable>
+              {%- if peer.is_rr_client | default(false) %}
+              <reflect-client>true</reflect-client>
+              {%- endif %}
+            </address-family>
+          </address-families>
+        </peer>
+        {%- endfor %}
+      </peers>
+    </bgp-instance>
+  </bgp>
+</config>

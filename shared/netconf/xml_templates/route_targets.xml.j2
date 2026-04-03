@@ -1,0 +1,84 @@
+{# ──────────────────────────────────────────────────────────────────────────
+   Route Target Configuration — Huawei CloudEngine
+   
+   Configures import and export Route Targets for:
+     - VPN Instances (VRFs) — controls L3 route leaking
+     - EVPN Instances — controls MAC/IP route distribution
+   
+   This template is typically used in conjunction with vrf_instance.xml.j2
+   and bridge_domain.xml.j2 to assign RT values during intent provisioning.
+   
+   YANG Models: huawei-network-instance, huawei-evpn
+   ────────────────────────────────────────────────────────────────────────── #}
+<config xmlns="urn:ietf:params:xml:ns:netconf:base:1.0">
+  {%- if vrf_route_targets is defined %}
+  <!-- VRF Route Targets (L3 VPN) -->
+  <network-instance xmlns="urn:huawei:params:xml:ns:yang:huawei-network-instance">
+    <instances>
+      {%- for vrf_rt in vrf_route_targets %}
+      <instance>
+        <name>{{ vrf_rt.vrf_name }}</name>
+        <address-families>
+          <address-family>
+            <af-type>ipv4-unicast</af-type>
+
+            {%- if vrf_rt.export_rts is defined %}
+            <export-route-targets>
+              {%- for rt in vrf_rt.export_rts %}
+              <route-target>
+                <value>{{ rt }}</value>
+              </route-target>
+              {%- endfor %}
+            </export-route-targets>
+            {%- endif %}
+
+            {%- if vrf_rt.import_rts is defined %}
+            <import-route-targets>
+              {%- for rt in vrf_rt.import_rts %}
+              <route-target>
+                <value>{{ rt }}</value>
+              </route-target>
+              {%- endfor %}
+            </import-route-targets>
+            {%- endif %}
+          </address-family>
+        </address-families>
+      </instance>
+      {%- endfor %}
+    </instances>
+  </network-instance>
+  {%- endif %}
+
+  {%- if evpn_route_targets is defined %}
+  <!-- EVPN Route Targets (MAC/IP routes) -->
+  <evpn xmlns="urn:huawei:params:xml:ns:yang:huawei-evpn">
+    <evpn-instances>
+      {%- for evpn_rt in evpn_route_targets %}
+      <evpn-instance>
+        <evpn-name>{{ evpn_rt.evpn_name }}</evpn-name>
+
+        {%- if evpn_rt.export_rts is defined %}
+        <export-route-targets>
+          {%- for rt in evpn_rt.export_rts %}
+          <route-target>
+            <value>{{ rt }}</value>
+          </route-target>
+          {%- endfor %}
+        </export-route-targets>
+        {%- endif %}
+
+        {%- if evpn_rt.import_rts is defined %}
+        <import-route-targets>
+          {%- for rt in evpn_rt.import_rts %}
+          <route-target>
+            <value>{{ rt }}</value>
+          </route-target>
+          {%- endfor %}
+        </import-route-targets>
+        {%- endif %}
+      </evpn-instance>
+      {%- endfor %}
+    </evpn-instances>
+  </evpn>
+  {%- endif %}
+</config>

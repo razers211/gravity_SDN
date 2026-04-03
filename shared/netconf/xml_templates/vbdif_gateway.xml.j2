@@ -1,0 +1,66 @@
+{# ──────────────────────────────────────────────────────────────────────────
+   VBDIF Anycast Gateway Configuration — Huawei CloudEngine
+   
+   Configures:
+     - VBDIF (VXLAN Bridge Domain Interface) creation
+     - IP address assignment (gateway for tenants)
+     - Anycast gateway MAC (shared across all VTEP leaves)
+     - ARP proxy enablement for silent-host scenarios
+     - Distributed anycast gateway mode
+   
+   YANG Models: huawei-ifm (urn:huawei:params:xml:ns:yang:huawei-ifm)
+                huawei-ip (urn:huawei:params:xml:ns:yang:huawei-ip)
+   ────────────────────────────────────────────────────────────────────────── #}
+<config xmlns="urn:ietf:params:xml:ns:netconf:base:1.0">
+  <ifm xmlns="urn:huawei:params:xml:ns:yang:huawei-ifm">
+    <interfaces>
+      {%- for gw in anycast_gateways %}
+      <interface>
+        <if-name>Vbdif{{ gw.bd_id }}</if-name>
+        <type>vbdif</type>
+        <description>{{ gw.description | default('Anycast GW for BD ' ~ gw.bd_id) }}</description>
+
+        {%- if gw.mtu is defined %}
+        <mtu>{{ gw.mtu }}</mtu>
+        {%- endif %}
+
+        <!-- IP Address Configuration -->
+        <ipv4 xmlns="urn:huawei:params:xml:ns:yang:huawei-ip">
+          <addresses>
+            <address>
+              <ip>{{ gw.ip_address }}</ip>
+              <mask>{{ gw.subnet_mask }}</mask>
+            </address>
+          </addresses>
+        </ipv4>
+
+        <!-- Anycast Gateway MAC -->
+        {%- if gw.anycast_mac is defined %}
+        <anycast-gateway>
+          <mac-address>{{ gw.anycast_mac }}</mac-address>
+          <enable>true</enable>
+        </anycast-gateway>
+        {%- endif %}
+
+        <!-- ARP Configuration -->
+        <arp-proxy>
+          {%- if gw.arp_proxy | default(true) %}
+          <proxy-enable>true</proxy-enable>
+          {%- endif %}
+          {%- if gw.arp_collect | default(true) %}
+          <arp-collect-host>true</arp-collect-host>
+          {%- endif %}
+        </arp-proxy>
+
+        <!-- Associate with VPN Instance (VRF) -->
+        {%- if gw.vrf_name is defined %}
+        <vrf-name>{{ gw.vrf_name }}</vrf-name>
+        {%- endif %}
+
+        <!-- Admin status UP -->
+        <admin-status>up</admin-status>
+      </interface>
+      {%- endfor %}
+    </interfaces>
+  </ifm>
+</config>

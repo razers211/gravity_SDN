@@ -1,0 +1,169 @@
+<!--
+  Gravity SDN — Reference XML Payload
+  BGP EVPN Instance mapped to VXLAN VNI
+
+  This is a syntax-accurate <edit-config> payload for a Huawei CloudEngine
+  switch to establish a BGP EVPN instance associated with Bridge Domain 100
+  and VXLAN VNI 10100.
+
+  Target: Huawei CloudEngine CE6800 / CE12800 / CE16800
+  VRP Version: V300R024C10
+  Protocol: NETCONF over SSH (Port 830)
+-->
+<rpc message-id="101" xmlns="urn:ietf:params:xml:ns:netconf:base:1.0">
+  <edit-config>
+    <target>
+      <candidate/>
+    </target>
+    <default-operation>merge</default-operation>
+    <config>
+
+      <!-- ═══════════════════════════════════════════════════════════════
+           1. BGP EVPN Address Family Configuration
+           ═══════════════════════════════════════════════════════════════ -->
+      <bgp xmlns="urn:huawei:params:xml:ns:yang:huawei-bgp">
+        <bgp-instance>
+          <as-number>65000</as-number>
+          <router-id>10.0.0.1</router-id>
+
+          <!-- EVPN Peer Group -->
+          <peer-groups>
+            <peer-group>
+              <group-name>EVPN-OVERLAY</group-name>
+              <peer-as>65000</peer-as>
+              <connect-interface>LoopBack0</connect-interface>
+              <address-families>
+                <address-family>
+                  <af-type>l2vpnEvpn</af-type>
+                  <enable>true</enable>
+                </address-family>
+              </address-families>
+            </peer-group>
+          </peer-groups>
+
+          <!-- BGP Peers (Spine Route Reflectors) -->
+          <peers>
+            <peer>
+              <peer-address>10.0.0.101</peer-address>
+              <peer-as>65000</peer-as>
+              <peer-group-name>EVPN-OVERLAY</peer-group-name>
+              <connect-interface>LoopBack0</connect-interface>
+              <address-families>
+                <address-family>
+                  <af-type>l2vpnEvpn</af-type>
+                  <enable>true</enable>
+                </address-family>
+              </address-families>
+            </peer>
+            <peer>
+              <peer-address>10.0.0.102</peer-address>
+              <peer-as>65000</peer-as>
+              <peer-group-name>EVPN-OVERLAY</peer-group-name>
+              <connect-interface>LoopBack0</connect-interface>
+              <address-families>
+                <address-family>
+                  <af-type>l2vpnEvpn</af-type>
+                  <enable>true</enable>
+                </address-family>
+              </address-families>
+            </peer>
+          </peers>
+        </bgp-instance>
+      </bgp>
+
+      <!-- ═══════════════════════════════════════════════════════════════
+           2. Bridge Domain 100 with VNI 10100 Binding
+           ═══════════════════════════════════════════════════════════════ -->
+      <bd xmlns="urn:huawei:params:xml:ns:yang:huawei-bd">
+        <bridge-domains>
+          <bridge-domain>
+            <bd-id>100</bd-id>
+            <description>Tenant-A Web Subnet</description>
+            <vxlan-vni>
+              <vni>10100</vni>
+            </vxlan-vni>
+          </bridge-domain>
+        </bridge-domains>
+      </bd>
+
+      <!-- ═══════════════════════════════════════════════════════════════
+           3. EVPN Instance for BD 100
+           ═══════════════════════════════════════════════════════════════ -->
+      <evpn xmlns="urn:huawei:params:xml:ns:yang:huawei-evpn">
+        <evpn-instances>
+          <evpn-instance>
+            <evpn-name>evpn-100</evpn-name>
+            <bd-id>100</bd-id>
+            <route-distinguisher>
+              <rd>10.0.0.1:100</rd>
+            </route-distinguisher>
+            <export-route-targets>
+              <route-target>
+                <value>65000:10100</value>
+              </route-target>
+            </export-route-targets>
+            <import-route-targets>
+              <route-target>
+                <value>65000:10100</value>
+              </route-target>
+            </import-route-targets>
+          </evpn-instance>
+        </evpn-instances>
+      </evpn>
+
+      <!-- ═══════════════════════════════════════════════════════════════
+           4. NVE Interface with VNI 10100  
+           ═══════════════════════════════════════════════════════════════ -->
+      <nvo3 xmlns="urn:huawei:params:xml:ns:yang:huawei-nvo3">
+        <nve-instances>
+          <nve-instance>
+            <if-name>Nve1</if-name>
+            <source-nve-interface>LoopBack1</source-nve-interface>
+            <nve-protocols>
+              <nve-protocol>
+                <protocol-type>bgp</protocol-type>
+              </nve-protocol>
+            </nve-protocols>
+            <vni-members>
+              <vni-member>
+                <vni>10100</vni>
+                <nve-mode>mode-l2</nve-mode>
+                <protocol-type>bgp</protocol-type>
+              </vni-member>
+            </vni-members>
+          </nve-instance>
+        </nve-instances>
+      </nvo3>
+
+      <!-- ═══════════════════════════════════════════════════════════════
+           5. VBDIF Anycast Gateway for BD 100
+           ═══════════════════════════════════════════════════════════════ -->
+      <ifm xmlns="urn:huawei:params:xml:ns:yang:huawei-ifm">
+        <interfaces>
+          <interface>
+            <if-name>Vbdif100</if-name>
+            <type>vbdif</type>
+            <description>Anycast GW - Tenant-A Web Subnet</description>
+            <ipv4 xmlns="urn:huawei:params:xml:ns:yang:huawei-ip">
+              <addresses>
+                <address>
+                  <ip>10.100.1.1</ip>
+                  <mask>255.255.255.0</mask>
+                </address>
+              </addresses>
+            </ipv4>
+            <anycast-gateway>
+              <mac-address>00:00:5e:00:01:01</mac-address>
+              <enable>true</enable>
+            </anycast-gateway>
+            <arp-proxy>
+              <proxy-enable>true</proxy-enable>
+            </arp-proxy>
+            <admin-status>up</admin-status>
+          </interface>
+        </interfaces>
+      </ifm>
+
+    </config>
+  </edit-config>
+</rpc>

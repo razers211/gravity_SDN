@@ -1,0 +1,182 @@
+<!--
+  Gravity SDN — Reference XML Payload
+  Distributed VXLAN Gateway Topology
+
+  Complete configuration for a leaf switch in a distributed VXLAN gateway
+  topology with symmetric IRB (L3 VNI for inter-subnet routing).
+
+  Components:
+    1. VRF (VPN Instance) with L3 VNI binding
+    2. Bridge Domains (L2) with L2 VNI binding
+    3. EVPN instances with RD/RT
+    4. NVE interface with L2 + L3 VNI members
+    5. VBDIF anycast gateways
+-->
+<rpc message-id="201" xmlns="urn:ietf:params:xml:ns:netconf:base:1.0">
+  <edit-config>
+    <target>
+      <candidate/>
+    </target>
+    <default-operation>merge</default-operation>
+    <config>
+
+      <!-- 1. VRF / VPN Instance with L3 VNI -->
+      <network-instance xmlns="urn:huawei:params:xml:ns:yang:huawei-network-instance">
+        <instances>
+          <instance>
+            <name>vrf-tenant-a</name>
+            <description>Tenant A VPN Instance</description>
+            <route-distinguisher>
+              <rd>65000:100</rd>
+            </route-distinguisher>
+            <address-families>
+              <address-family>
+                <af-type>ipv4-unicast</af-type>
+                <export-route-targets>
+                  <route-target><value>65000:100</value></route-target>
+                </export-route-targets>
+                <import-route-targets>
+                  <route-target><value>65000:100</value></route-target>
+                </import-route-targets>
+              </address-family>
+              <address-family>
+                <af-type>evpn</af-type>
+                <export-route-targets>
+                  <route-target><value>65000:100</value></route-target>
+                </export-route-targets>
+                <import-route-targets>
+                  <route-target><value>65000:100</value></route-target>
+                </import-route-targets>
+              </address-family>
+            </address-families>
+            <vxlan-vni>
+              <vni>50000</vni>
+            </vxlan-vni>
+          </instance>
+        </instances>
+      </network-instance>
+
+      <!-- 2. Bridge Domains with L2 VNI -->
+      <bd xmlns="urn:huawei:params:xml:ns:yang:huawei-bd">
+        <bridge-domains>
+          <bridge-domain>
+            <bd-id>100</bd-id>
+            <description>Tenant-A Web Subnet</description>
+            <vxlan-vni><vni>10100</vni></vxlan-vni>
+          </bridge-domain>
+          <bridge-domain>
+            <bd-id>200</bd-id>
+            <description>Tenant-A DB Subnet</description>
+            <vxlan-vni><vni>10200</vni></vxlan-vni>
+          </bridge-domain>
+        </bridge-domains>
+      </bd>
+
+      <!-- 3. EVPN Instances -->
+      <evpn xmlns="urn:huawei:params:xml:ns:yang:huawei-evpn">
+        <evpn-instances>
+          <evpn-instance>
+            <evpn-name>evpn-100</evpn-name>
+            <bd-id>100</bd-id>
+            <route-distinguisher><rd>10.0.0.1:100</rd></route-distinguisher>
+            <export-route-targets>
+              <route-target><value>65000:10100</value></route-target>
+            </export-route-targets>
+            <import-route-targets>
+              <route-target><value>65000:10100</value></route-target>
+            </import-route-targets>
+          </evpn-instance>
+          <evpn-instance>
+            <evpn-name>evpn-200</evpn-name>
+            <bd-id>200</bd-id>
+            <route-distinguisher><rd>10.0.0.1:200</rd></route-distinguisher>
+            <export-route-targets>
+              <route-target><value>65000:10200</value></route-target>
+            </export-route-targets>
+            <import-route-targets>
+              <route-target><value>65000:10200</value></route-target>
+            </import-route-targets>
+          </evpn-instance>
+        </evpn-instances>
+      </evpn>
+
+      <!-- 4. NVE Interface — L2 + L3 VNI Members -->
+      <nvo3 xmlns="urn:huawei:params:xml:ns:yang:huawei-nvo3">
+        <nve-instances>
+          <nve-instance>
+            <if-name>Nve1</if-name>
+            <source-nve-interface>LoopBack1</source-nve-interface>
+            <nve-protocols>
+              <nve-protocol><protocol-type>bgp</protocol-type></nve-protocol>
+            </nve-protocols>
+            <vni-members>
+              <!-- L2 VNIs -->
+              <vni-member>
+                <vni>10100</vni>
+                <nve-mode>mode-l2</nve-mode>
+                <protocol-type>bgp</protocol-type>
+              </vni-member>
+              <vni-member>
+                <vni>10200</vni>
+                <nve-mode>mode-l2</nve-mode>
+                <protocol-type>bgp</protocol-type>
+              </vni-member>
+              <!-- L3 VNI (Symmetric IRB) -->
+              <vni-member>
+                <vni>50000</vni>
+                <nve-mode>mode-l3</nve-mode>
+              </vni-member>
+            </vni-members>
+          </nve-instance>
+        </nve-instances>
+      </nvo3>
+
+      <!-- 5. VBDIF Anycast Gateways -->
+      <ifm xmlns="urn:huawei:params:xml:ns:yang:huawei-ifm">
+        <interfaces>
+          <interface>
+            <if-name>Vbdif100</if-name>
+            <type>vbdif</type>
+            <description>Anycast GW — Web Subnet 10.100.1.0/24</description>
+            <vrf-name>vrf-tenant-a</vrf-name>
+            <ipv4 xmlns="urn:huawei:params:xml:ns:yang:huawei-ip">
+              <addresses>
+                <address>
+                  <ip>10.100.1.1</ip>
+                  <mask>255.255.255.0</mask>
+                </address>
+              </addresses>
+            </ipv4>
+            <anycast-gateway>
+              <mac-address>00:00:5e:00:01:01</mac-address>
+              <enable>true</enable>
+            </anycast-gateway>
+            <arp-proxy><proxy-enable>true</proxy-enable></arp-proxy>
+            <admin-status>up</admin-status>
+          </interface>
+          <interface>
+            <if-name>Vbdif200</if-name>
+            <type>vbdif</type>
+            <description>Anycast GW — DB Subnet 10.100.2.0/24</description>
+            <vrf-name>vrf-tenant-a</vrf-name>
+            <ipv4 xmlns="urn:huawei:params:xml:ns:yang:huawei-ip">
+              <addresses>
+                <address>
+                  <ip>10.100.2.1</ip>
+                  <mask>255.255.255.0</mask>
+                </address>
+              </addresses>
+            </ipv4>
+            <anycast-gateway>
+              <mac-address>00:00:5e:00:01:01</mac-address>
+              <enable>true</enable>
+            </anycast-gateway>
+            <arp-proxy><proxy-enable>true</proxy-enable></arp-proxy>
+            <admin-status>up</admin-status>
+          </interface>
+        </interfaces>
+      </ifm>
+
+    </config>
+  </edit-config>
+</rpc>

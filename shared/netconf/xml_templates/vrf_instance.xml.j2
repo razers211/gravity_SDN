@@ -1,0 +1,105 @@
+{# ──────────────────────────────────────────────────────────────────────────
+   VRF / VPN Instance Configuration — Huawei CloudEngine
+   
+   Configures:
+     - VPN instance (VRF) creation
+     - IPv4/IPv6 address-family activation
+     - Route Distinguisher (RD)
+     - Import and Export Route Targets (IRT/ERT)
+     - L3 VNI binding for symmetric IRB
+     - EVPN address-family enablement
+   
+   YANG Models: huawei-network-instance
+                (urn:huawei:params:xml:ns:yang:huawei-network-instance)
+   ────────────────────────────────────────────────────────────────────────── #}
+<config xmlns="urn:ietf:params:xml:ns:netconf:base:1.0">
+  <network-instance xmlns="urn:huawei:params:xml:ns:yang:huawei-network-instance">
+    <instances>
+      {%- for vrf in vrf_instances %}
+      <instance>
+        <name>{{ vrf.name }}</name>
+        {%- if vrf.description is defined %}
+        <description>{{ vrf.description }}</description>
+        {%- endif %}
+
+        <!-- Route Distinguisher -->
+        {%- if vrf.route_distinguisher is defined %}
+        <route-distinguisher>
+          <rd>{{ vrf.route_distinguisher }}</rd>
+        </route-distinguisher>
+        {%- endif %}
+
+        <!-- Address Families -->
+        <address-families>
+          {%- if vrf.ipv4_unicast | default(true) %}
+          <address-family>
+            <af-type>ipv4-unicast</af-type>
+
+            <!-- Export Route Targets -->
+            {%- if vrf.export_route_targets is defined %}
+            <export-route-targets>
+              {%- for rt in vrf.export_route_targets %}
+              <route-target>
+                <value>{{ rt }}</value>
+              </route-target>
+              {%- endfor %}
+            </export-route-targets>
+            {%- endif %}
+
+            <!-- Import Route Targets -->
+            {%- if vrf.import_route_targets is defined %}
+            <import-route-targets>
+              {%- for rt in vrf.import_route_targets %}
+              <route-target>
+                <value>{{ rt }}</value>
+              </route-target>
+              {%- endfor %}
+            </import-route-targets>
+            {%- endif %}
+          </address-family>
+          {%- endif %}
+
+          {%- if vrf.ipv6_unicast | default(false) %}
+          <address-family>
+            <af-type>ipv6-unicast</af-type>
+          </address-family>
+          {%- endif %}
+
+          {%- if vrf.evpn | default(true) %}
+          <address-family>
+            <af-type>evpn</af-type>
+
+            {%- if vrf.evpn_export_rts is defined %}
+            <export-route-targets>
+              {%- for rt in vrf.evpn_export_rts %}
+              <route-target>
+                <value>{{ rt }}</value>
+              </route-target>
+              {%- endfor %}
+            </export-route-targets>
+            {%- endif %}
+
+            {%- if vrf.evpn_import_rts is defined %}
+            <import-route-targets>
+              {%- for rt in vrf.evpn_import_rts %}
+              <route-target>
+                <value>{{ rt }}</value>
+              </route-target>
+              {%- endfor %}
+            </import-route-targets>
+            {%- endif %}
+          </address-family>
+          {%- endif %}
+        </address-families>
+
+        <!-- L3 VNI Binding (for Symmetric IRB) -->
+        {%- if vrf.l3_vni is defined and vrf.l3_vni %}
+        <vxlan-vni>
+          <vni>{{ vrf.l3_vni }}</vni>
+        </vxlan-vni>
+        {%- endif %}
+      </instance>
+      {%- endfor %}
+    </instances>
+  </network-instance>
+</config>

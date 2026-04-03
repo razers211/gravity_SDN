@@ -1,0 +1,93 @@
+{# ──────────────────────────────────────────────────────────────────────────
+   Bridge Domain Configuration — Huawei CloudEngine
+   
+   Configures:
+     - Bridge Domain creation with ID and description
+     - VNI binding to the Bridge Domain
+     - EVPN instance creation and association
+     - Route Distinguisher (RD) and Route Target (RT) assignment
+     - Member interface binding
+   
+   YANG Models: huawei-bd (urn:huawei:params:xml:ns:yang:huawei-bd)
+                huawei-evpn (urn:huawei:params:xml:ns:yang:huawei-evpn)
+   ────────────────────────────────────────────────────────────────────────── #}
+<config xmlns="urn:ietf:params:xml:ns:netconf:base:1.0">
+  <!-- Bridge Domain Definition -->
+  <bd xmlns="urn:huawei:params:xml:ns:yang:huawei-bd">
+    <bridge-domains>
+      {%- for bd in bridge_domains %}
+      <bridge-domain>
+        <bd-id>{{ bd.bd_id }}</bd-id>
+        {%- if bd.description is defined %}
+        <description>{{ bd.description }}</description>
+        {%- endif %}
+
+        <!-- VNI Binding -->
+        {%- if bd.vni is defined and bd.vni %}
+        <vxlan-vni>
+          <vni>{{ bd.vni }}</vni>
+        </vxlan-vni>
+        {%- endif %}
+
+        {%- if bd.member_interfaces is defined %}
+        <!-- Member Interfaces -->
+        <member-interfaces>
+          {%- for iface in bd.member_interfaces %}
+          <member-interface>
+            <if-name>{{ iface.name }}</if-name>
+            {%- if iface.vlan_id is defined %}
+            <access-type>{{ iface.access_type | default('vlan') }}</access-type>
+            <access-vlan>{{ iface.vlan_id }}</access-vlan>
+            {%- endif %}
+          </member-interface>
+          {%- endfor %}
+        </member-interfaces>
+        {%- endif %}
+      </bridge-domain>
+      {%- endfor %}
+    </bridge-domains>
+  </bd>
+
+  <!-- EVPN Instance (linked to Bridge Domains) -->
+  <evpn xmlns="urn:huawei:params:xml:ns:yang:huawei-evpn">
+    <evpn-instances>
+      {%- for bd in bridge_domains %}
+      {%- if bd.evpn_instance is defined %}
+      <evpn-instance>
+        <evpn-name>{{ bd.evpn_instance.name }}</evpn-name>
+        <bd-id>{{ bd.bd_id }}</bd-id>
+
+        <!-- Route Distinguisher -->
+        {%- if bd.evpn_instance.rd is defined %}
+        <route-distinguisher>
+          <rd>{{ bd.evpn_instance.rd }}</rd>
+        </route-distinguisher>
+        {%- endif %}
+
+        <!-- Export Route Targets -->
+        {%- if bd.evpn_instance.export_rts is defined %}
+        <export-route-targets>
+          {%- for rt in bd.evpn_instance.export_rts %}
+          <route-target>
+            <value>{{ rt }}</value>
+          </route-target>
+          {%- endfor %}
+        </export-route-targets>
+        {%- endif %}
+
+        <!-- Import Route Targets -->
+        {%- if bd.evpn_instance.import_rts is defined %}
+        <import-route-targets>
+          {%- for rt in bd.evpn_instance.import_rts %}
+          <route-target>
+            <value>{{ rt }}</value>
+          </route-target>
+          {%- endfor %}
+        </import-route-targets>
+        {%- endif %}
+      </evpn-instance>
+      {%- endif %}
+      {%- endfor %}
+    </evpn-instances>
+  </evpn>
+</config>

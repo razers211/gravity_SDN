@@ -1,0 +1,219 @@
+###############################################################################
+# CloudEngine IDN Automation Platform — Local Development Stack
+# Usage: docker-compose up -d
+###############################################################################
+version: "3.9"
+
+x-common-env: &common-env
+  NEO4J_URI: bolt://neo4j:7687
+  NEO4J_USER: neo4j
+  NEO4J_PASSWORD: gravity_sdn_dev
+  KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+  POSTGRES_DSN: postgresql+asyncpg://gravity:gravity_sdn_dev@postgres:5432/gravity_sdn
+  REDIS_URL: redis://redis:6379/0
+  JWT_SECRET_KEY: dev-secret-change-in-production
+  JWT_ALGORITHM: HS256
+  JWT_EXPIRY_MINUTES: "60"
+  LOG_LEVEL: DEBUG
+
+services:
+  # ---------------------------------------------------------------------------
+  # Infrastructure
+  # ---------------------------------------------------------------------------
+  neo4j:
+    image: neo4j:5-community
+    container_name: gravity-neo4j
+    ports:
+      - "7474:7474"   # Browser UI
+      - "7687:7687"   # Bolt protocol
+    environment:
+      NEO4J_AUTH: neo4j/gravity_sdn_dev
+      NEO4J_PLUGINS: '["apoc", "graph-data-science"]'
+      NEO4J_dbms_memory_heap_max__size: 1G
+    volumes:
+      - neo4j_data:/data
+    healthcheck:
+      test: ["CMD-SHELL", "cypher-shell -u neo4j -p gravity_sdn_dev 'RETURN 1'"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.6.1
+    container_name: gravity-zookeeper
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+    volumes:
+      - zk_data:/var/lib/zookeeper/data
+
+  kafka:
+    image: confluentinc/cp-kafka:7.6.1
+    container_name: gravity-kafka
+    depends_on:
+      - zookeeper
+    ports:
+      - "9092:9092"
+      - "29092:29092"
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,HOST:PLAINTEXT
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092,HOST://localhost:29092
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+    volumes:
+      - kafka_data:/var/lib/kafka/data
+    healthcheck:
+      test: ["CMD", "kafka-broker-api-versions", "--bootstrap-server", "localhost:9092"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  postgres:
+    image: postgres:16-alpine
+    container_name: gravity-postgres
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: gravity
+      POSTGRES_PASSWORD: gravity_sdn_dev
+      POSTGRES_DB: gravity_sdn
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U gravity -d gravity_sdn"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    container_name: gravity-redis
+    ports:
+      - "6379:6379"
+    command: redis-server --maxmemory 256mb --maxmemory-policy allkeys-lru
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  # ---------------------------------------------------------------------------
+  # Application Services
+  # ---------------------------------------------------------------------------
+  api-gateway:
+    build:
+      context: .
+      dockerfile: services/api_gateway/Dockerfile
+    container_name: gravity-api-gateway
+    ports:
+      - "8000:8000"
+    environment:
+      <<: *common-env
+      SERVICE_NAME: api-gateway
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      neo4j:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+
+  intent-engine:
+    build:
+      context: .
+      dockerfile: services/intent_engine/Dockerfile
+    container_name: gravity-intent-engine
+    ports:
+      - "8001:8001"
+    environment:
+      <<: *common-env
+      SERVICE_NAME: intent-engine
+      SERVICE_PORT: "8001"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      neo4j:
+        condition: service_healthy
+
+  provisioning-engine:
+    build:
+      context: .
+      dockerfile: services/provisioning_engine/Dockerfile
+    container_name: gravity-provisioning-engine
+    ports:
+      - "8002:8002"
+    environment:
+      <<: *common-env
+      SERVICE_NAME: provisioning-engine
+      SERVICE_PORT: "8002"
+    depends_on:
+      kafka:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  ztp-service:
+    build:
+      context: .
+      dockerfile: services/ztp_service/Dockerfile
+    container_name: gravity-ztp-service
+    ports:
+      - "8003:8003"
+      - "67:67/udp"     # DHCP listener
+      - "69:69/udp"     # TFTP (optional)
+    environment:
+      <<: *common-env
+      SERVICE_NAME: ztp-service
+      SERVICE_PORT: "8003"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  oam-service:
+    build:
+      context: .
+      dockerfile: services/oam_service/Dockerfile
+    container_name: gravity-oam-service
+    ports:
+      - "8004:8004"
+      - "57400:57400"   # gRPC telemetry collector
+    environment:
+      <<: *common-env
+      SERVICE_NAME: oam-service
+      SERVICE_PORT: "8004"
+    depends_on:
+      kafka:
+        condition: service_healthy
+      neo4j:
+        condition: service_healthy
+
+  resource-manager:
+    build:
+      context: .
+      dockerfile: services/resource_manager/Dockerfile
+    container_name: gravity-resource-manager
+    ports:
+      - "8005:8005"
+    environment:
+      <<: *common-env
+      SERVICE_NAME: resource-manager
+      SERVICE_PORT: "8005"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+volumes:
+  neo4j_data:
+  zk_data:
+  kafka_data:
+  pg_data:
+  redis_data:
