@@ -2,15 +2,10 @@ FROM python:3.12-slim
 
 # Set environment variables
 ENV PYTHONDONTWRITEBYTECODE=1 \
-    PYTHONUNBUFFERED=1 \
-    POETRY_VERSION=1.8.2 \
-    POETRY_HOME="/opt/poetry" \
-    POETRY_VIRTUALENVS_CREATE=false \
-    PIP_BREAK_SYSTEM_PACKAGES=1
+    PYTHONUNBUFFERED=1
 
 # Install required system dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    curl \
     build-essential \
     python3-dev \
     libpq-dev \
@@ -21,24 +16,22 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     cargo \
     && rm -rf /var/lib/apt/lists/*
 
-# Install Poetry
-RUN curl -sSL https://install.python-poetry.org | python3 -
-ENV PATH="$POETRY_HOME/bin:$PATH"
-
-# Set work directory
 WORKDIR /app
 
-# Copy dependency files first for caching
-COPY pyproject.toml poetry.lock* README.md ./
+# Upgrade pip to latest
+RUN pip install --no-cache-dir --upgrade pip wheel setuptools
 
-# Install dependencies
-RUN poetry install --no-interaction --no-ansi --no-root --only main
+# Copy project files
+COPY pyproject.toml README.md ./
 
-# Copy the rest of the application
+# Install standard dependencies (excluding local folders initially)
+RUN pip install --no-cache-dir .
+
+# Copy source maps
 COPY . .
 
-# Install the application itself
-RUN poetry install --no-interaction --no-ansi --only main
+# Install the application logic
+RUN pip install --no-cache-dir .
 
-# Default command (will be overridden by docker-compose)
+# Default command (overridden by docker-compose)
 CMD ["python", "services/api_gateway/main.py"]
